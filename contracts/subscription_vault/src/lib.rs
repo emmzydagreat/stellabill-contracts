@@ -175,51 +175,6 @@ pub mod admin_api;
 /// Billing statements: append-only ledger of charges per subscription.
 pub mod statements;
 
-#[cfg(test)]
-mod admin_treasury_change_tests {
-    use crate::admin::{execute_treasury_change, read_config, write_config};
-    use crate::types::{DataKey, Error};
-    use soroban_sdk::{testutils::Address as _, Address, Env};
-
-    fn setup() -> (Env, Address, Address) {
-        let env = Env::default();
-        env.mock_all_auths();
-        let admin = Address::generate(&env);
-        let new_treasury = Address::generate(&env);
-        write_config(&env, &DataKey::Admin, &admin);
-        (env, admin, new_treasury)
-    }
-
-    #[test]
-    fn execute_treasury_change_success_updates_state() {
-        let (env, admin, new_treasury) = setup();
-        let result = execute_treasury_change(&env, &admin, &new_treasury);
-        assert_eq!(result, Ok(()));
-        let stored: Address = read_config(&env, &DataKey::Treasury).unwrap();
-        assert_eq!(stored, new_treasury);
-    }
-
-    #[test]
-    fn execute_treasury_change_unauthorized_leaves_state_unchanged() {
-        let (env, _admin, new_treasury) = setup();
-        let attacker = Address::generate(&env);
-        let result = execute_treasury_change(&env, &attacker, &new_treasury);
-        assert!(result.is_err());
-        let stored: Option<Address> = read_config(&env, &DataKey::Treasury);
-        assert!(stored.is_none());
-    }
-
-    #[test]
-    fn execute_treasury_change_rejects_same_address() {
-        let (env, admin, _new_treasury) = setup();
-        write_config(&env, &DataKey::Treasury, &admin);
-        let result = execute_treasury_change(&env, &admin, &admin);
-        assert_eq!(result, Err(Error::InvalidInput));
-        let stored: Address = read_config(&env, &DataKey::Treasury).unwrap();
-        assert_eq!(stored, admin);
-    }
-}
-
 
 /// Accounting: tracks total tokens accounted for across all subscriptions.
 pub mod accounting {
@@ -3563,6 +3518,8 @@ mod test_do_vote_proposal;
 mod test_treasury_split;
 #[cfg(test)]
 mod test_admin_treasury_change;
+#[cfg(test)]
+mod test_execute_treasury_change_adversarial;
 #[cfg(test)]
 mod test_operator;
 
